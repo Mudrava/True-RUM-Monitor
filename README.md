@@ -1,6 +1,6 @@
 # True RUM Monitor (Mudrava)
 
-Real User Monitoring plugin for WordPress by Mudrava (mudrava.com). Collects TTFB, LCP, server generation time, total load, memory peak, device, network, country, and session ID from real visitors. Includes admin UI, filters, on-demand reports, and scheduled email summaries.
+Real User Monitoring plugin for WordPress by Mudrava ([mudrava.com](https://mudrava.com)). Collects TTFB, LCP, server generation time, total load, memory peak, device, network, country, and session ID from real visitors. Includes admin UI, filters, on-demand reports, and scheduled email summaries.
 
 ## Status
 - Free plugin, single-site support (no multisite handling documented).
@@ -68,5 +68,5 @@ Real User Monitoring plugin for WordPress by Mudrava (mudrava.com). Collects TTF
 4. On Settings, click “Test Email” to validate scheduled-report delivery and mail setup.
 
 ## Support and license
-- Vendor: Mudrava (mudrava.com).
+- Vendor: Mudrava ([mudrava.com](https://mudrava.com)).
 - License: GPL-2.0-or-later (WordPress-compatible).
