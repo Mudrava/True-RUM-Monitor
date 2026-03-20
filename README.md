@@ -1,5 +1,7 @@
 <p align="center">
-  <img src="https://mudrava.com/wp-content/uploads/2025/04/mudrava-logo-dark.svg" alt="MUDRAVA" width="180"/>
+  <a href="https://mudrava.com/en/projects/true-rum-monitor-wordpress-plugin/">
+    <img src=".wordpress-org/banner-1544x500.png" alt="True RUM Monitor — Real User Monitoring for WordPress" />
+  </a>
 </p>
 
 <h1 align="center">True RUM Monitor</h1>
