@@ -1,72 +1,157 @@
-# True RUM Monitor
+<p align="center">
+  <img src="https://mudrava.com/wp-content/uploads/2025/04/mudrava-logo-dark.svg" alt="MUDRAVA" width="180"/>
+</p>
 
-Real User Monitoring plugin for WordPress by Mudrava ([mudrava.com](https://mudrava.com)). Collects TTFB, LCP, server generation time, total load, memory peak, device, network, country, and session ID from real visitors. Includes admin UI, filters, on-demand reports, and scheduled email summaries.
+<h1 align="center">True RUM Monitor</h1>
 
-## Status
-- Free plugin, single-site support (no multisite handling documented).
-- Current version: 0.1.8.
+<p align="center">
+  Real User Monitoring for WordPress — track actual visitor performance, not synthetic benchmarks.
+</p>
+
+<p align="center">
+  <a href="https://wordpress.org/plugins/true-rum-monitor/"><img src="https://img.shields.io/badge/WordPress-6.2%2B-blue?logo=wordpress" alt="WordPress 6.2+"></a>
+  <a href="https://www.php.net/"><img src="https://img.shields.io/badge/PHP-7.4%2B-777BB4?logo=php&logoColor=white" alt="PHP 7.4+"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPLv2-green" alt="GPL-2.0-or-later"></a>
+  <a href="https://mudrava.com"><img src="https://img.shields.io/badge/by-MUDRAVA-021D69" alt="MUDRAVA"></a>
+</p>
+
+---
+
+## Why True RUM?
+
+Synthetic tools like Lighthouse and PageSpeed Insights test from a single location under ideal conditions. **True RUM Monitor** captures what your real visitors actually experience — across devices, networks, and geographies.
+
+| Synthetic Testing | True RUM Monitor |
+|---|---|
+| Lab environment | Real user data |
+| Single location | Global visitors |
+| One device profile | Mobile, tablet, desktop |
+| Scheduled snapshots | Every pageview (sampled) |
+| Theoretical scores | Actual TTFB, LCP, load times |
+
+## Features
+
+- **Core Web Vitals** — TTFB, LCP, server generation time, total page load
+- **Zero-config collector** — lightweight async JS, no impact on page speed
+- **Live Monitor dashboard** — real-time log with sortable columns and filters
+- **Performance reports** — on-demand modal with averages, P75 LCP, slowest pages
+- **Email summaries** — scheduled daily/weekly via WP-Cron
+- **Critical TTFB alerts** — configurable threshold, consecutive trigger, cooldown
+- **Smart sampling** — 100%, 50%, or 10% traffic sampling rate
+- **Privacy-first** — no PII, no cookies, no external services, all data stays in your DB
+- **Cache-aware** — detects and handles cached page artifacts automatically
+- **Extensible** — action/filter hooks for developers
+
+## Screenshots
+
+> Screenshots are available on the [WordPress.org plugin page](https://wordpress.org/plugins/true-rum-monitor/).
+
+**Live Monitor** — filterable real-time performance log with color-coded metrics.
+
+**Settings** — sampling rate, retention, excluded roles, email reports, TTFB alerts.
+
+**Report Modal** — aggregated stats, P75 LCP, top slowest pages by LCP.
 
 ## Requirements
-- WordPress with REST API enabled.
-- WP-Cron running for scheduled emails.
-- PHP 7.4+ recommended.
+
+- WordPress 6.2+
+- PHP 7.4+
+- WP REST API enabled
+- WP-Cron for scheduled emails (or external cron)
 
 ## Installation
-1. Copy the `true-rum-monitor` folder to `wp-content/plugins/`.
-2. Activate “True RUM” in WordPress Admin → Plugins.
-3. No theme edits required. Frontend collector loads automatically for sampled, non-excluded traffic.
 
-## What is collected (stored in plugin table)
-- `event_time`, `url`
-- `server_time` (PHP render), `ttfb`, `lcp`, `total_load`
-- `memory_peak`, `device`, `net`, `country`
-- `session_id`, `user_role`, `meta`
+1. Upload the `true-rum-monitor` folder to `/wp-content/plugins/`.
+2. Activate via **Plugins → Installed Plugins**.
+3. Go to **True RUM → Settings** to configure sampling, retention, and alerts.
+4. Visit **True RUM → Live Monitor** to see incoming data.
 
-## Admin: Live Monitor
-- Menu: WordPress Admin → True RUM → Live Monitor.
-- Filters: Session ID, URL contains, Device (desktop/tablet/mobile), Network (4g/3g/2g/slow-2g), per-page size; sortable columns.
-- Metrics shown per row: Time, URL, Server Gen, TTFB, LCP, Total Load, Device, Net, Session.
-- Color cues for good/warn/poor thresholds (TTFB/LCP).
-
-## Reports (modal)
-- Button “Generate Report” builds a modal using current filters.
-- Shows: Avg TTFB, Avg LCP, Avg Server Gen, Avg Total Load, P75 LCP, Total Views.
-- Shows “Top Slowest Pages (by LCP)” with average LCP, hits, and links.
-- Button “Send Report to Email” triggers the email report immediately.
-
-## Email reports
-- Schedule: daily or weekly (WP-Cron).
-- Content: averages (LCP, TTFB, Total Load), top slow pages (LCP/TTFB, hits), device split.
-- Recipient: configured in settings. Test manually via “Test Email” button on the settings page or via the modal button.
-
-## Settings (WordPress Admin → True RUM → Settings)
-- Retention: max records, purge older than N days.
-- Sampling rate.
-- Excluded roles.
-- Blacklist URL prefixes (one per line).
-- Email reports: schedule (daily/weekly), recipient email.
-- Alerts: TTFB threshold, consecutive slow requests, cooldown between alerts.
+No theme edits required. The frontend collector loads automatically.
 
 ## REST API
-- `POST /wp-json/true-rum/v1/collect`
-  - Public; expects header `X-TRM-Nonce` or query `trm_token`; body JSON with the collected metrics.
-- `GET /wp-json/true-rum/v1/logs`
-  - Auth (manage_options). Query params: page, per_page, order, order_by, session_id, url, device, net.
-- `GET /wp-json/true-rum/v1/stats`
-  - Auth. Same filters as `/logs`. Returns aggregates and slowest pages.
-- `POST /wp-json/true-rum/v1/send-report`
-  - Auth. Triggers the email report immediately.
 
-## Data handling and sampling
-- Requests are skipped if the user role is excluded, the URL path matches blacklist prefixes, or random sampling excludes it.
-- Retention: FIFO by max records and purge by retention days.
+| Endpoint | Method | Auth | Description |
+|---|---|---|---|
+| `/wp-json/true-rum/v1/collect` | POST | Nonce | Ingestion endpoint for collector JS |
+| `/wp-json/true-rum/v1/logs` | GET | `manage_options` | Paginated log query with filters |
+| `/wp-json/true-rum/v1/stats` | GET | `manage_options` | Aggregated statistics |
+| `/wp-json/true-rum/v1/send-report` | POST | `manage_options` | Trigger email report |
 
-## How to validate
-1. Open Live Monitor and confirm rows appear for new visits; use filters to narrow results.
-2. Click “Generate Report” to see aggregates and “Top Slowest Pages (by LCP)”.
-3. Click “Send Report to Email” in the modal to test immediate delivery.
-4. On Settings, click “Test Email” to validate scheduled-report delivery and mail setup.
+## Hooks for Developers
 
-## Support and license
-- Vendor: Mudrava ([mudrava.com](https://mudrava.com)).
-- License: GPL-2.0-or-later (WordPress-compatible).
+```php
+// Filter whether to track a request
+add_filter( 'trm_should_track_request', function ( $track, $settings ) {
+    return $track;
+}, 10, 2 );
+
+// Modify log data before insertion
+add_filter( 'trm_before_insert', function ( $row ) {
+    return $row;
+} );
+
+// Filter collector settings for frontend JS
+add_filter( 'trm_collector_settings', function ( $localize ) {
+    return $localize;
+} );
+
+// Customize email report content
+add_filter( 'trm_report_email_body', function ( $body, $recipient, $avg ) {
+    return $body;
+}, 10, 3 );
+
+// Action after plugin is fully loaded
+do_action( 'trm_loaded', $plugin );
+```
+
+## Data Collected
+
+| Field | Description |
+|---|---|
+| `event_time` | UTC timestamp |
+| `url` | Page URL |
+| `server_time` | PHP generation time (seconds) |
+| `ttfb` | Time to First Byte (seconds) |
+| `lcp` | Largest Contentful Paint (seconds) |
+| `total_load` | Full page load time (seconds) |
+| `memory_peak` | PHP peak memory (bytes) |
+| `device` | `mobile` / `tablet` / `desktop` |
+| `net` | `4g` / `3g` / `2g` / `slow-2g` |
+| `country` | ISO code via CF-IPCountry header |
+| `session_id` | Random ID (sessionStorage, not a cookie) |
+
+**No PII is collected.** No cookies are set. No data leaves your server.
+
+## Development
+
+```bash
+# Install dev dependencies
+composer install
+
+# Run PHPCS linting
+composer lint
+
+# Auto-fix coding standard issues
+composer lint:fix
+```
+
+## Contributing
+
+Contributions are welcome. Please open an issue first to discuss proposed changes.
+
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Open a Pull Request
+
+## License
+
+GPL-2.0-or-later — see [LICENSE](LICENSE) for details.
+
+## Credits
+
+Built by [MUDRAVA](https://mudrava.com) — a digital product studio specializing in WordPress, web performance, and design systems.
+
+- [mudrava.com](https://mudrava.com)
+- [support@mudrava.com](mailto:support@mudrava.com)

@@ -1,6 +1,7 @@
 <?php
 /**
  * Plugin Name: True RUM Monitor
+ * Plugin URI: https://wordpress.org/plugins/true-rum-monitor/
  * Description: Real User Monitoring (RUM) for WordPress websites to track performance metrics and user experience.
  * Version: 0.1.8
  * Requires at least: 6.2
@@ -10,6 +11,9 @@
  * License: GPLv2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: true-rum-monitor
+ * Domain Path: /languages
+ *
+ * @package TrueRUMMonitor
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

@@ -1,6 +1,8 @@
 <?php
 /**
  * Uninstall cleanup for True RUM Monitor.
+ *
+ * @package TrueRUMMonitor
  */
 
 if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
@@ -15,3 +17,5 @@ $wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $table ) );
 delete_option( 'trm_settings' );
 delete_option( 'trm_last_interval' );
 delete_option( 'trm_last_alert_ts' );
+
+wp_clear_scheduled_hook( 'trm_reports_cron' );

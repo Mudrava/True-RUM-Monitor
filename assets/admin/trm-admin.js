@@ -12,7 +12,7 @@
             testEmailBtn.disabled = true;
             testEmailBtn.textContent = 'Sending...';
 
-            const u = new URL(cfg.restUrl.replace('/collect', '/send-report').replace('/logs', '/send-report'));
+            const u = new URL(cfg.sendReportUrl);
             window.fetch(u.toString(), {
                 method: 'POST',
                 headers: { 'X-WP-Nonce': cfg.nonce }
@@ -204,25 +204,8 @@
     });
 
     function openReport() {
-        const url = new URL(cfg.restUrl.replace('/collect', '/stats').replace('/logs', '/stats'));
-        // Correctly handle endpoint replacement if restUrl is /logs (it is likely /logs or /collect depending on config, but based on reading code, restUrl passed to admin is... wait, let's check class-trm-collector.php printing settings... it prints 'restUrl' => '.../collect'. 
-        // But for Admin, we use 'restUrl' passed via wp_localize_script ? No.
-        // Let's check class-trm-admin.php.
-        // It's not there.
-        // Wait, where does TRMAdminSettings come from?
-        // I need to check class-trm-admin.php again to be sure what settings are passed.
-        // The file snippet I read earlier said `wp_localize_script( 'trm-admin', 'TRMAdminSettings', ... )` ?
-        // I read `trm-admin.js` earlier and it says `const cfg = window.TRMAdminSettings || {};`.
-        // Let's verify `class-trm-admin.php` and what it localizes.
-        
-        // Assuming restUrl is the base API url or specific endpoint.
-        // If it's `.../collect`, I need to change it to `.../stats`.
-        
-        // Actually, looking at `class-trm-collector.php`, it defined `restUrl` pointing to `/collect`.
-        // Admin likely has its own settings.
-        
-        // Let's quickly verify class-trm-admin.php enqueueing.
-        
+        const url = new URL(cfg.statsUrl);
+
         reportBtn.disabled = true;
         reportBtn.textContent = 'Loading...';
 
@@ -291,7 +274,14 @@
         metrics.forEach(m => {
             const box = document.createElement('div');
             box.className = 'trm-stat-box';
-            box.innerHTML = `<div class="trm-stat-value">${m.val}</div><div class="trm-stat-label">${m.label}</div>`;
+            const valDiv = document.createElement('div');
+            valDiv.className = 'trm-stat-value';
+            valDiv.textContent = m.val;
+            box.appendChild(valDiv);
+            const labelDiv = document.createElement('div');
+            labelDiv.className = 'trm-stat-label';
+            labelDiv.textContent = m.label;
+            box.appendChild(labelDiv);
             grid.appendChild(box);
         });
         modal.appendChild(grid);
@@ -307,18 +297,40 @@
 
             const tbl = document.createElement('table');
             tbl.className = 'wp-list-table widefat striped';
-            tbl.innerHTML = `
-                <thead><tr><th>URL</th><th>Avg LCP</th><th>Hits</th></tr></thead>
-                <tbody>
-                    ${stats.slowest_lcp.map(r => `
-                        <tr>
-                            <td><a href="${r.url}" target="_blank">${cutUrl(r.url)}</a></td>
-                            <td class="trm-metric-poor">${Number(r.avg_lcp).toFixed(3)}s</td>
-                            <td>${r.count}</td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            `;
+            const thead = document.createElement('thead');
+            const hdrRow = document.createElement('tr');
+            ['URL', 'Avg LCP', 'Hits'].forEach(function (text) {
+                const th = document.createElement('th');
+                th.textContent = text;
+                hdrRow.appendChild(th);
+            });
+            thead.appendChild(hdrRow);
+            tbl.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+            stats.slowest_lcp.forEach(function (r) {
+                const row = document.createElement('tr');
+                const urlTd = document.createElement('td');
+                const link = document.createElement('a');
+                link.href = r.url;
+                link.target = '_blank';
+                link.rel = 'noopener';
+                link.textContent = cutUrl(r.url);
+                urlTd.appendChild(link);
+                row.appendChild(urlTd);
+
+                const lcpTd = document.createElement('td');
+                lcpTd.className = 'trm-metric-poor';
+                lcpTd.textContent = Number(r.avg_lcp).toFixed(3) + 's';
+                row.appendChild(lcpTd);
+
+                const hitsTd = document.createElement('td');
+                hitsTd.textContent = r.count;
+                row.appendChild(hitsTd);
+
+                tbody.appendChild(row);
+            });
+            tbl.appendChild(tbody);
             modal.appendChild(tbl);
         }
 
@@ -337,7 +349,7 @@
         emailBtn.onclick = () => {
              emailBtn.disabled = true;
              emailBtn.textContent = 'Sending...';
-             const u = new URL(cfg.restUrl.replace('/collect', '/send-report').replace('/logs', '/send-report'));
+             const u = new URL(cfg.sendReportUrl);
              window.fetch(u.toString(), {
                  method: 'POST',
                  headers: { 'X-WP-Nonce': cfg.nonce }
@@ -425,7 +437,15 @@
 
         const current = document.createElement('span');
         current.className = 'paging-input';
-        current.innerHTML = `<span class="current-page">${state.page}</span> of <span class="total-pages">${totalPages}</span>`;
+        const currentSpan = document.createElement('span');
+        currentSpan.className = 'current-page';
+        currentSpan.textContent = state.page;
+        current.appendChild(currentSpan);
+        current.appendChild(document.createTextNode(' of '));
+        const totalSpan = document.createElement('span');
+        totalSpan.className = 'total-pages';
+        totalSpan.textContent = totalPages;
+        current.appendChild(totalSpan);
         links.appendChild(current);
 
         // Next
@@ -452,7 +472,9 @@
         if (!rows.length) {
             const empty = document.createElement('div');
             empty.className = 'notice notice-warning inline';
-            empty.innerHTML = `<p>${cfg.i18n ? cfg.i18n.empty : 'No entries yet.'}</p>`;
+            const emptyP = document.createElement('p');
+            emptyP.textContent = cfg.i18n ? cfg.i18n.empty : 'No entries yet.';
+            empty.appendChild(emptyP);
             tableWrap.appendChild(empty);
             return;
         }
@@ -481,7 +503,12 @@
             if (col.sortable || col.key === 'event_time') {
                 const link = document.createElement('a');
                 link.href = '#';
-                link.innerHTML = `<span>${col.label}</span><span class="sorting-indicator"></span>`;
+                const labelSpan = document.createElement('span');
+                labelSpan.textContent = col.label;
+                link.appendChild(labelSpan);
+                const indicatorSpan = document.createElement('span');
+                indicatorSpan.className = 'sorting-indicator';
+                link.appendChild(indicatorSpan);
                 if (state.orderBy === col.key) {
                     th.className = 'sorted ' + state.order;
                 } else {
@@ -505,10 +532,10 @@
             const tr = document.createElement('tr');
 
             appendCell(tr, row.event_time);
-            appendCell(tr, `<a href="${row.url}" target="_blank">${cutUrl(row.url)}</a>`);
+            appendUrlCell(tr, row.url);
             appendCell(tr, formatNumber(row.server_time) + 's');
-            appendCell(tr, formatMetric(row.ttfb, 'ttfb'));
-            appendCell(tr, formatMetric(row.lcp, 'lcp'));
+            appendMetricCell(tr, row.ttfb, 'ttfb');
+            appendMetricCell(tr, row.lcp, 'lcp');
             appendCell(tr, formatNumber(row.total_load));
             appendCell(tr, row.device);
             appendCell(tr, row.net);
@@ -527,9 +554,29 @@
         } catch(e) { return url; }
     }
 
-    function appendCell(tr, html) {
+    function appendCell(tr, content) {
         const td = document.createElement('td');
-        td.innerHTML = html == null ? '' : html;
+        td.textContent = content == null ? '' : content;
+        tr.appendChild(td);
+    }
+
+    function appendMetricCell(tr, value, key) {
+        const td = document.createElement('td');
+        const span = document.createElement('span');
+        span.className = metricClass(Number(value || 0), key);
+        span.textContent = formatNumber(value) + 's';
+        td.appendChild(span);
+        tr.appendChild(td);
+    }
+
+    function appendUrlCell(tr, url) {
+        const td = document.createElement('td');
+        const a = document.createElement('a');
+        a.href = url;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.textContent = cutUrl(url);
+        td.appendChild(a);
         tr.appendChild(td);
     }
 
@@ -550,9 +597,7 @@
     }
 
     function formatMetric(value, key) {
-        const num = Number(value || 0);
-        const cls = metricClass(num, key);
-        return '<span class="' + cls + '">' + formatNumber(num) + 's</span>';
+        return formatNumber(value) + 's';
     }
 
     function formatNumber(num) {
@@ -580,41 +625,6 @@
         if (value <= good) return 'trm-metric-good';
         if (value <= poor) return 'trm-metric-needs-improvement';
         return 'trm-metric-poor';
-    }
-
-    function renderPager() {
-        pager.innerHTML = '';
-        const totalPages = Math.max(1, Math.ceil(state.total / state.perPage));
-
-        const prev = document.createElement('button');
-        prev.className = 'button';
-        prev.textContent = 'Prev';
-        prev.disabled = state.page <= 1;
-        prev.addEventListener('click', () => {
-            if (state.page > 1) {
-                state.page -= 1;
-                fetchLogs();
-            }
-        });
-
-        const next = document.createElement('button');
-        next.className = 'button';
-        next.textContent = 'Next';
-        next.disabled = state.page >= totalPages;
-        next.addEventListener('click', () => {
-            if (state.page < totalPages) {
-                state.page += 1;
-                fetchLogs();
-            }
-        });
-
-        const label = document.createElement('span');
-        label.textContent = 'Page ' + state.page + ' / ' + totalPages + ' (' + state.total + ')';
-        label.className = 'trm-page-label';
-
-        pager.appendChild(prev);
-        pager.appendChild(label);
-        pager.appendChild(next);
     }
 
     function toggleSort(key) {

@@ -35,7 +35,7 @@ class TRM_Reports {
     /**
      * Hook actions.
      */
-    public function hook() {
+    public function hook(): void {
         add_action( 'init', array( $this, 'register_cron' ) );
         add_action( self::CRON_HOOK, array( $this, 'run_cron' ) );
     }
@@ -43,7 +43,7 @@ class TRM_Reports {
     /**
      * Register cron schedule.
      */
-    public function register_cron() {
+    public function register_cron(): void {
         add_filter( 'cron_schedules', array( $this, 'register_schedule' ) );
         $this->ensure_scheduled();
     }
@@ -54,7 +54,7 @@ class TRM_Reports {
      * @param array $schedules Existing schedules.
      * @return array
      */
-    public function register_schedule( $schedules ) {
+    public function register_schedule( array $schedules ): array {
         $interval = $this->get_interval_seconds();
 
         $schedules['trm_interval'] = array(
@@ -68,7 +68,7 @@ class TRM_Reports {
     /**
      * Ensure cron is scheduled with current interval; reschedule if changed.
      */
-    protected function ensure_scheduled() {
+    protected function ensure_scheduled(): void {
         $interval       = $this->get_interval_seconds();
         $last_interval  = (int) get_option( 'trm_last_interval', 0 );
         $needs_reschedule = ( $last_interval !== $interval );
@@ -91,7 +91,7 @@ class TRM_Reports {
      *
      * @return int
      */
-    protected function get_interval_seconds() {
+    protected function get_interval_seconds(): int {
         $settings = $this->plugin->settings()->all();
         return ( 'daily' === $settings['report_schedule'] ) ? DAY_IN_SECONDS : WEEK_IN_SECONDS;
     }
@@ -99,7 +99,11 @@ class TRM_Reports {
     /**
      * Cron task runner.
      */
-    public function run_cron() {
+    public function run_cron(): void {
+        $settings = $this->plugin->settings()->all();
+        TRM_DB::purge_older_than( $settings['retention_days'] );
+        TRM_DB::enforce_limit( $settings['limit'] );
+
         $this->send_report();
         $this->check_alerts();
     }
@@ -109,7 +113,7 @@ class TRM_Reports {
      * 
      * @return bool Success status.
      */
-    public function send_report() {
+    public function send_report(): bool {
         global $wpdb;
 
         $settings = $this->plugin->settings()->all();
@@ -152,13 +156,22 @@ class TRM_Reports {
             $body .= sprintf( "%s: %d\n", $row['device'] ?: 'unknown', $row['hits'] );
         }
 
+        /**
+         * Filter the email report body before sending.
+         *
+         * @param string $body      Email body text.
+         * @param string $recipient Recipient email address.
+         * @param array  $avg       Average metrics.
+         */
+        $body = apply_filters( 'trm_report_email_body', $body, $recipient, $avg );
+
         return wp_mail( $recipient, "True RUM Report: {$site_name}", $body );
     }
 
     /**
      * Check for TTFB alerts.
      */
-    protected function check_alerts() {
+    protected function check_alerts(): void {
         global $wpdb;
 
         $settings   = $this->plugin->settings()->all();

@@ -14,7 +14,7 @@ class TRM_DB {
     /**
      * Create or update plugin table.
      */
-    public static function create_table() {
+    public static function create_table(): void {
         global $wpdb;
 
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
@@ -25,7 +25,7 @@ class TRM_DB {
         $sql = "CREATE TABLE {$table} (
             id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             event_time datetime NOT NULL,
-            url varchar(255) NOT NULL,
+            url varchar(2048) NOT NULL,
             server_time float NOT NULL DEFAULT 0,
             ttfb float NOT NULL DEFAULT 0,
             lcp float NOT NULL DEFAULT 0,
@@ -56,6 +56,13 @@ class TRM_DB {
 
         $row = self::sanitize_row( $row );
 
+        /**
+         * Filter log data before database insertion.
+         *
+         * @param array $row Sanitized row data.
+         */
+        $row = apply_filters( 'trm_before_insert', $row );
+
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
         $wpdb->insert(
             TRM_TABLE,
@@ -78,6 +85,8 @@ class TRM_DB {
         );
 
         if ( $wpdb->last_error ) {
+            // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+            error_log( 'True RUM Monitor: insert failed — ' . $wpdb->last_error );
             return false;
         }
 
@@ -89,7 +98,7 @@ class TRM_DB {
      *
      * @param int $limit Maximum number of rows.
      */
-    public static function enforce_limit( $limit ) {
+    public static function enforce_limit( int $limit ): void {
         global $wpdb;
 
         $limit = absint( $limit );
@@ -108,7 +117,7 @@ class TRM_DB {
         $ids    = $wpdb->get_col( $wpdb->prepare( 'SELECT id FROM %i ORDER BY event_time ASC LIMIT %d', TRM_TABLE, $offset ) );
         if ( ! empty( $ids ) ) {
             $placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE id IN ({$placeholders})", array_merge( array( TRM_TABLE ), $ids ) ) );
         }
     }
@@ -118,7 +127,7 @@ class TRM_DB {
      *
      * @param int $days Days to keep.
      */
-    public static function purge_older_than( $days ) {
+    public static function purge_older_than( int $days ): void {
         global $wpdb;
 
         $days = absint( $days );
@@ -137,7 +146,7 @@ class TRM_DB {
      * @param array $args Query args.
      * @return array{data: array, total: int}
      */
-    public static function query_logs( array $args ) {
+    public static function query_logs( array $args ): array {
         global $wpdb;
 
         $page     = max( 1, absint( $args['page'] ?? 1 ) );
@@ -146,7 +155,7 @@ class TRM_DB {
         $order_by = isset( $args['order_by'] ) ? sanitize_text_field( $args['order_by'] ) : 'event_time';
         $order    = ( isset( $args['order'] ) && 'asc' === strtolower( $args['order'] ) ) ? 'ASC' : 'DESC';
 
-        $allowed_order = array( 'event_time', 'ttfb', 'lcp', 'total_load' );
+        $allowed_order = array( 'event_time', 'ttfb', 'lcp', 'total_load', 'server_time' );
         if ( ! in_array( $order_by, $allowed_order, true ) ) {
             $order_by = 'event_time';
         }
@@ -179,12 +188,12 @@ class TRM_DB {
 
         $total_sql    = 'SELECT COUNT(id) FROM %i ' . $where;
         $total_params = array_merge( array( TRM_TABLE ), $params );
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
         $total        = (int) $wpdb->get_var( $wpdb->prepare( $total_sql, $total_params ) );
 
-        $data_sql    = 'SELECT id, event_time, url, server_time, ttfb, lcp, total_load, memory_peak, device, net, country, session_id, user_role FROM %i ' . $where . " ORDER BY {$order_by} {$order} LIMIT %d OFFSET %d";
-        $data_params = array_merge( array( TRM_TABLE ), $params, array( $per_page, $offset ) );
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        $data_sql    = 'SELECT id, event_time, url, server_time, ttfb, lcp, total_load, memory_peak, device, net, country, session_id, user_role FROM %i ' . $where . " ORDER BY %i {$order} LIMIT %d OFFSET %d";
+        $data_params = array_merge( array( TRM_TABLE ), $params, array( $order_by, $per_page, $offset ) );
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
         $data        = $wpdb->get_results( $wpdb->prepare( $data_sql, $data_params ), ARRAY_A );
 
         return array(
@@ -199,7 +208,7 @@ class TRM_DB {
      * @param array $args Filter args.
      * @return array
      */
-    public static function get_stats( array $args ) {
+    public static function get_stats( array $args ): array {
         global $wpdb;
 
         $where_clauses = array();
@@ -237,21 +246,16 @@ class TRM_DB {
             FROM %i {$where}";
         
         $all_params = array_merge( array( TRM_TABLE ), $params );
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
         $stats = $wpdb->get_row( $wpdb->prepare( $sql, $all_params ), ARRAY_A );
 
-        // Calculate P75 for LCP (Approximation in MySQL 5.7/MariaDB without window functions is hard, simplified here)
-        // We will just fetch all LCPs for this selection to calc P75 in PHP if dataset is reasonable, 
-        // OR distinct query. Fore performance on large sets, better use specific SQL.
-        // For now, let's stick to averages which are faster, or simple P75 if needed.
-        // Let's implement P75 LCP specifically as it is a core vital.
-        
+        // P75 LCP via OFFSET (MySQL 5.7+ / MariaDB compatible).
         $p75_lcp = 0;
         if ( $stats['count'] > 0 ) {
             $offset_p75 = floor( $stats['count'] * 0.75 );
             $p75_sql    = "SELECT lcp FROM %i {$where} ORDER BY lcp ASC LIMIT 1 OFFSET %d";
             $p75_params = array_merge( array( TRM_TABLE ), $params, array( $offset_p75 ) );
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
             $p75_lcp    = $wpdb->get_var( $wpdb->prepare( $p75_sql, $p75_params ) );
         }
 
@@ -263,17 +267,16 @@ class TRM_DB {
         $stats['avg_server'] = round( floatval( $stats['avg_server'] ), 3 );
         $stats['avg_load']   = round( floatval( $stats['avg_load'] ), 3 );
 
-        // Top 5 Slowest URLs by LCP (User Pain Points)
-        // Must have at least 2 samples to be significant
-        $slowest_lcp_sql = "SELECT url, AVG(lcp) as avg_lcp, COUNT(id) as count FROM %i {$where} GROUP BY url HAVING count >= 1 ORDER BY avg_lcp DESC LIMIT 5";
+        // Top 5 Slowest URLs by LCP.
+        $slowest_lcp_sql = "SELECT url, AVG(lcp) as avg_lcp, COUNT(id) as count FROM %i {$where} GROUP BY url HAVING count >= 2 ORDER BY avg_lcp DESC LIMIT 5";
         $lcp_params = array_merge( array( TRM_TABLE ), $params );
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
         $stats['slowest_lcp'] = $wpdb->get_results( $wpdb->prepare( $slowest_lcp_sql, $lcp_params ), ARRAY_A );
 
-        // Top 5 Heavy Server Generation
-        $slowest_srv_sql = "SELECT url, AVG(server_time) as avg_srv, COUNT(id) as count FROM %i {$where} GROUP BY url HAVING count >= 1 ORDER BY avg_srv DESC LIMIT 5";
+        // Top 5 Heavy Server Generation.
+        $slowest_srv_sql = "SELECT url, AVG(server_time) as avg_srv, COUNT(id) as count FROM %i {$where} GROUP BY url HAVING count >= 2 ORDER BY avg_srv DESC LIMIT 5";
         $srv_params = array_merge( array( TRM_TABLE ), $params );
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
         $stats['slowest_srv'] = $wpdb->get_results( $wpdb->prepare( $slowest_srv_sql, $srv_params ), ARRAY_A );
 
         return $stats;
@@ -285,7 +288,7 @@ class TRM_DB {
      * @param array $row Row data.
      * @return array
      */
-    protected static function sanitize_row( array $row ) {
+    protected static function sanitize_row( array $row ): array {
         $sanitized = array(
             'event_time'  => isset( $row['event_time'] ) ? sanitize_text_field( $row['event_time'] ) : current_time( 'mysql', true ),
             'url'         => isset( $row['url'] ) ? sanitize_text_field( $row['url'] ) : '',

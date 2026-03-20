@@ -65,7 +65,7 @@ class TRM_Plugin {
      *
      * @return TRM_Plugin
      */
-    public static function instance() {
+    public static function instance(): self {
         if ( is_null( self::$instance ) ) {
             self::$instance = new self();
         }
@@ -89,17 +89,26 @@ class TRM_Plugin {
     /**
      * Init hooks.
      */
-    public function init() {
+    public function init(): void {
         $this->collector->hook();
         $this->rest->hook();
         $this->admin->hook();
         $this->reports->hook();
+
+        add_action( 'admin_init', array( $this, 'register_privacy_content' ) );
+
+        /**
+         * Fires after True RUM Monitor is fully loaded.
+         *
+         * @param TRM_Plugin $plugin Plugin instance.
+         */
+        do_action( 'trm_loaded', $this );
     }
 
     /**
      * Activation handler.
      */
-    public static function activate() {
+    public static function activate(): void {
         TRM_DB::create_table();
 
         $instance = self::instance();
@@ -109,7 +118,7 @@ class TRM_Plugin {
     /**
      * Deactivation handler.
      */
-    public static function deactivate() {
+    public static function deactivate(): void {
         wp_clear_scheduled_hook( TRM_Reports::CRON_HOOK );
     }
 
@@ -118,8 +127,27 @@ class TRM_Plugin {
      *
      * @return TRM_Settings
      */
-    public function settings() {
+    public function settings(): TRM_Settings {
         return $this->settings;
+    }
+
+    /**
+     * Register privacy policy suggested content.
+     */
+    public function register_privacy_content(): void {
+        if ( ! function_exists( 'wp_add_privacy_policy_content' ) ) {
+            return;
+        }
+
+        $content = sprintf(
+            '<h2>%s</h2><p>%s</p><p>%s</p><p>%s</p>',
+            __( 'True RUM Monitor', 'true-rum-monitor' ),
+            __( 'This plugin collects anonymized performance metrics (page load times, device type, network type) from site visitors. No personally identifiable information (PII) is collected or stored.', 'true-rum-monitor' ),
+            __( 'Session IDs are randomly generated per browser tab using sessionStorage and are not linked to user accounts. No cookies are set. No data is sent to external services — all collected data is stored locally in your WordPress database.', 'true-rum-monitor' ),
+            __( 'Collected data is automatically purged based on configured retention settings.', 'true-rum-monitor' )
+        );
+
+        wp_add_privacy_policy_content( 'True RUM Monitor', wp_kses_post( $content ) );
     }
 
     /**
@@ -127,7 +155,7 @@ class TRM_Plugin {
      *
      * @return TRM_Reports
      */
-    public function reports() {
+    public function reports(): TRM_Reports {
         return $this->reports;
     }
 
@@ -136,7 +164,7 @@ class TRM_Plugin {
      *
      * @return bool
      */
-    public function should_track_request() {
+    public function should_track_request(): bool {
         $settings = $this->settings->all();
 
         if ( is_user_logged_in() ) {
@@ -160,7 +188,13 @@ class TRM_Plugin {
             return false;
         }
 
-        return true;
+        /**
+         * Filter whether the current request should be tracked.
+         *
+         * @param bool  $track    Whether to track the request.
+         * @param array $settings Current plugin settings.
+         */
+        return apply_filters( 'trm_should_track_request', true, $settings );
     }
 
     /**
@@ -168,7 +202,7 @@ class TRM_Plugin {
      *
      * @return array
      */
-    public function get_server_context() {
+    public function get_server_context(): array {
         $server_time = $this->get_server_time();
         $memory_peak = memory_get_peak_usage();
         $country     = isset( $_SERVER['HTTP_CF_IPCOUNTRY'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_CF_IPCOUNTRY'] ) ) : '';
@@ -185,11 +219,12 @@ class TRM_Plugin {
      *
      * @return float Seconds with micro precision.
      */
-    protected function get_server_time() {
+    protected function get_server_time(): float {
         $now = microtime( true );
 
         // Use REQUEST_TIME_FLOAT if available (most reliable for total generic time)
         if ( isset( $_SERVER['REQUEST_TIME_FLOAT'] ) ) {
+            // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash -- Numeric timestamp, cast to float.
             $start = (float) $_SERVER['REQUEST_TIME_FLOAT'];
         } elseif ( ! empty( $GLOBALS['timestart'] ) ) {
             // Fallback to WP global start time

@@ -62,7 +62,14 @@
     }
 
     function deviceType() {
-        return /Mobi|Android/i.test(navigator.userAgent) ? 'mob' : 'desk';
+        const ua = navigator.userAgent;
+        if (/Mobi|Android.*Mobile|iPhone|iPod/i.test(ua)) {
+            return 'mobile';
+        }
+        if (/iPad|Android(?!.*Mobile)|Tablet/i.test(ua)) {
+            return 'tablet';
+        }
+        return 'desktop';
     }
 
     function connectionType() {
@@ -70,7 +77,12 @@
         return conn && conn.effectiveType ? conn.effectiveType : '';
     }
 
+    let sent = false;
+
     function sendPayload() {
+        if (sent) {
+            return;
+        }
         if (navigator.connection && navigator.connection.saveData) {
             return;
         }
@@ -106,6 +118,8 @@
             country: cfg.server && cfg.server.country ? cfg.server.country : '',
             session_id: sessionId,
         };
+
+        sent = true;
 
         // Use fetch with keepalive as the modern standard for RUM
         if (window.fetch) {

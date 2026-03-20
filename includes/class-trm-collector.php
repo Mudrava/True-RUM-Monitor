@@ -30,7 +30,7 @@ class TRM_Collector {
     /**
      * Hook into WordPress.
      */
-    public function hook() {
+    public function hook(): void {
         add_action( 'wp_enqueue_scripts', array( $this, 'enqueue' ) );
         add_action( 'wp_footer', array( $this, 'print_settings' ), 1 );
     }
@@ -38,7 +38,7 @@ class TRM_Collector {
     /**
      * Enqueue collector script on frontend.
      */
-    public function enqueue() {
+    public function enqueue(): void {
         if ( is_admin() ) {
             return;
         }
@@ -61,9 +61,9 @@ class TRM_Collector {
     }
 
     /**
-     * Output settings in footer to capture full server time.
+     * Inject collector settings as inline script to capture server time.
      */
-    public function print_settings() {
+    public function print_settings(): void {
         if ( is_admin() ) {
             return;
         }
@@ -86,8 +86,17 @@ class TRM_Collector {
             'sessionKey' => 'trm_session_id',
         );
 
-        echo '<script type="text/javascript">';
-        echo 'var TRMCollectorSettings = ' . wp_json_encode( $localize ) . ';';
-        echo '</script>';
+        /**
+         * Filter collector settings passed to the frontend JS.
+         *
+         * @param array $localize Collector settings.
+         */
+        $localize = apply_filters( 'trm_collector_settings', $localize );
+
+        wp_add_inline_script(
+            'trm-collector',
+            'var TRMCollectorSettings = ' . wp_json_encode( $localize ) . ';',
+            'before'
+        );
     }
 }

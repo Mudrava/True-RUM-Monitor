@@ -75,6 +75,24 @@ Go to True RUM > Live Monitor in your WordPress admin. Click "Generate Report" f
 2. Settings page with sampling, retention, and alert configuration.
 3. Performance report modal with averages and top slowest pages.
 
+== Privacy ==
+
+**Data Collection:**
+
+This plugin collects anonymized performance metrics (TTFB, LCP, load times, device type, network type) from site visitors. No personally identifiable information (PII) is collected or stored. Session IDs are randomly generated and not linked to user accounts.
+
+**External Requests:**
+
+This plugin does not send data to external third-party services. All collected data is stored locally in your WordPress database.
+
+**Cookies:**
+
+This plugin does not use cookies. Session IDs are stored in the browser's sessionStorage.
+
+**Data Retention:**
+
+Collected data is automatically purged based on your configured retention settings (maximum records and retention days).
+
 == Changelog ==
 
 = 0.1.8 =

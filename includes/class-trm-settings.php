@@ -41,7 +41,7 @@ class TRM_Settings {
      *
      * @return array
      */
-    public function all() {
+    public function all(): array {
         $stored   = get_option( self::OPTION_KEY, array() );
         $settings = wp_parse_args( $stored, $this->defaults );
 
@@ -58,7 +58,7 @@ class TRM_Settings {
      * @param string $key Setting key.
      * @return mixed|null
      */
-    public function get( $key ) {
+    public function get( string $key ) {
         $settings = $this->all();
 
         return isset( $settings[ $key ] ) ? $settings[ $key ] : null;
@@ -70,7 +70,7 @@ class TRM_Settings {
      * @param array $data Incoming data.
      * @return array Saved settings.
      */
-    public function update( array $data ) {
+    public function update( array $data ): array {
         $settings = $this->all();
 
         if ( isset( $data['limit'] ) ) {
@@ -93,7 +93,7 @@ class TRM_Settings {
         }
 
         if ( isset( $data['blacklist'] ) ) {
-            $blacklist = is_array( $data['blacklist'] ) ? $data['blacklist'] : explode( '\n', str_replace( '\r', '', $data['blacklist'] ) );
+            $blacklist = is_array( $data['blacklist'] ) ? $data['blacklist'] : explode( "\n", str_replace( "\r", "", $data['blacklist'] ) );
             $blacklist = array_map( 'sanitize_text_field', array_map( 'trim', $blacklist ) );
             $settings['blacklist'] = array_filter( $blacklist );
         }
