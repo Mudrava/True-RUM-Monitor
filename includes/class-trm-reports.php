@@ -119,15 +119,18 @@ class TRM_Reports {
         }
 
         $table = TRM_TABLE;
-        $avg   = $wpdb->get_row( "SELECT AVG(ttfb) as ttfb, AVG(lcp) as lcp, AVG(total_load) as total_load FROM {$table}", ARRAY_A );
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        $avg   = $wpdb->get_row( $wpdb->prepare( 'SELECT AVG(ttfb) as ttfb, AVG(lcp) as lcp, AVG(total_load) as total_load FROM %i', $table ), ARRAY_A );
 
         $avg_ttfb  = isset( $avg['ttfb'] ) ? floatval( $avg['ttfb'] ) : 0;
         $avg_lcp   = isset( $avg['lcp'] ) ? floatval( $avg['lcp'] ) : 0;
         $avg_total = isset( $avg['total_load'] ) ? floatval( $avg['total_load'] ) : 0;
 
-        $top_pages = $wpdb->get_results( "SELECT url, AVG(ttfb) as ttfb, AVG(lcp) as lcp, COUNT(*) as hits FROM {$table} GROUP BY url HAVING hits > 1 ORDER BY lcp DESC LIMIT 10", ARRAY_A );
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        $top_pages = $wpdb->get_results( $wpdb->prepare( 'SELECT url, AVG(ttfb) as ttfb, AVG(lcp) as lcp, COUNT(*) as hits FROM %i GROUP BY url HAVING hits > 1 ORDER BY lcp DESC LIMIT 10', $table ), ARRAY_A );
 
-        $devices = $wpdb->get_results( "SELECT device, COUNT(*) as hits FROM {$table} GROUP BY device", ARRAY_A );
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        $devices = $wpdb->get_results( $wpdb->prepare( 'SELECT device, COUNT(*) as hits FROM %i GROUP BY device', $table ), ARRAY_A );
 
         $site_name = get_bloginfo( 'name' );
         $body  = "True RUM Monitor Report for {$site_name}\n";
@@ -167,7 +170,8 @@ class TRM_Reports {
             return;
         }
 
-        $rows = $wpdb->get_col( $wpdb->prepare( 'SELECT ttfb FROM ' . TRM_TABLE . ' ORDER BY event_time DESC LIMIT %d', max( 20, $consecutive ) ) );
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        $rows = $wpdb->get_col( $wpdb->prepare( 'SELECT ttfb FROM %i ORDER BY event_time DESC LIMIT %d', TRM_TABLE, max( 20, $consecutive ) ) );
 
         $streak = 0;
         foreach ( (array) $rows as $ttfb ) {

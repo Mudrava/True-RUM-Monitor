@@ -9,7 +9,8 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 
 global $wpdb;
 $table = $wpdb->prefix . 'true_rum_logs';
-$wpdb->query( "DROP TABLE IF EXISTS {$table}" );
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange
+$wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $table ) );
 
 delete_option( 'trm_settings' );
 delete_option( 'trm_last_interval' );

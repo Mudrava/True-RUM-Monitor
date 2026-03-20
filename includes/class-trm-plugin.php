@@ -90,7 +90,6 @@ class TRM_Plugin {
      * Init hooks.
      */
     public function init() {
-        load_plugin_textdomain( 'true-rum-monitor', false, dirname( plugin_basename( TRM_PLUGIN_FILE ) ) . '/languages' );
         $this->collector->hook();
         $this->rest->hook();
         $this->admin->hook();
@@ -147,7 +146,8 @@ class TRM_Plugin {
             }
         }
 
-        $path      = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_parse_url( $_SERVER['REQUEST_URI'], PHP_URL_PATH ) ) : '';
+        $raw_uri   = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+        $path      = (string) wp_parse_url( $raw_uri, PHP_URL_PATH );
         $blacklist = $settings['blacklist'];
         foreach ( $blacklist as $prefix ) {
             if ( $prefix && 0 === strpos( $path, $prefix ) ) {
